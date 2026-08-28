@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>vux06 | CTF Player &amp; Bug Hunter</title>
+  <style>
+    :root {
+      --bg: #000000;
+      --bg-raised: #131313;
+      --line: #2a2a2a;
+      --text: #d4d4d4;
+      --muted: #757575;
+      --accent: #ababab;
+      --accent-dim: #3a3a3a;
+      --white: #ffffff;
+      --mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      overflow-x: hidden;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: 24px;
+      position: relative;
+    }
+
+    /* ========================================================
+       LOADER SCREEN - ONLY DOT GRID BG (.....) ON BLACK CANVAS
+       ======================================================== */
+    .loader-wrapper {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      background-color: #000000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 99999;
+      overflow: hidden;
+      opacity: 1;
+      visibility: visible;
+      transition: opacity 0.75s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.75s ease;
+      cursor: pointer;
+    }
+
+    .loader-wrapper.loaded {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    /* Video Center Container */
+    .video-container {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000000;
+      z-index: 1;
+    }
+
+    .intro-video {
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      object-fit: cover;
+      object-position: center center;
+      display: block;
+    }
+
+    /* Only Dot Grid Background (.....) */
+    .decor-dot-grid {
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(rgba(255, 255, 255, 0.18) 1.2px, transparent 1.2px);
+      background-size: 26px 26px;
+      pointer-events: none;
+      z-index: 2;
+      opacity: 0.65;
+    }
+
+    /* Subtle Skip button */
+    .skip-btn {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      z-index: 10;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      color: rgba(212, 212, 212, 0.6);
+      background: rgba(19, 19, 19, 0.85);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      padding: 6px 14px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      pointer-events: auto;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+
+    .skip-btn:hover {
+      border-color: rgba(255, 255, 255, 0.4);
+      background: rgba(35, 35, 35, 0.95);
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+
+    /* ========================================================
+       MAIN LANDING PAGE (PRESERVED MINIMALIST THEME)
+       ======================================================== */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+      background-size: 42px 42px;
+      pointer-events: none;
+      mask-image: radial-gradient(ellipse 60% 50% at 50% 40%, black 0%, transparent 75%);
+    }
+
+    .top-rule {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--line) 20%, var(--line) 80%, transparent);
+    }
+
+    main {
+      width: 100%;
+      max-width: 620px;
+      text-align: center;
+      position: relative;
+      z-index: 1;
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1), transform 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    body.content-ready main {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    h1 {
+      font-family: var(--mono);
+      font-size: clamp(32px, 6vw, 44px);
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      margin-bottom: 16px;
+    }
+
+    h1 .tilde {
+      color: var(--accent);
+    }
+
+    .role {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+
+    .tagline {
+      font-size: 14.5px;
+      color: var(--muted);
+      line-height: 1.6;
+      max-width: 440px;
+      margin: 0 auto 40px;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .card {
+      background: var(--bg-raised);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 22px 18px;
+      text-decoration: none;
+      color: inherit;
+      text-align: left;
+      transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card:hover {
+      border-color: var(--accent-dim);
+      transform: translateY(-2px);
+      background: #131619;
+    }
+
+    .card:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .card:hover .arrow {
+      transform: translate(2px, -2px);
+      opacity: 1;
+    }
+
+    .card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .card-index {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 0.04em;
+    }
+
+    .arrow {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--muted);
+      opacity: 0.5;
+      transition: all 0.2s ease;
+    }
+
+    .card h2 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .card p {
+      font-size: 12.5px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    footer {
+      margin-top: 48px;
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: #4a4e55;
+      letter-spacing: 0.03em;
+    }
+
+    @media (max-width: 480px) {
+      .cards {
+        grid-template-columns: 1fr;
+      }
+      .skip-btn {
+        bottom: 16px;
+        right: 16px;
+        font-size: 10px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        animation: none !important;
+      }
+      main {
+        opacity: 1 !important;
+        transform: none !important;
+      }
+      .loader-wrapper {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Video Intro Loading Screen (Black Canvas with Dot Grid Background) -->
+  <div id="loader-wrapper" class="loader-wrapper" aria-label="Loading animation" title="Click anywhere to skip">
+    <!-- Centered Video & Fallback Poster Image -->
+    <div class="video-container">
+      <video
+        id="intro-video"
+        class="intro-video"
+        autoplay
+        muted
+        playsinline
+        preload="auto">
+        <source src="spider23.mp4" type="video/mp4">
+      </video>
+    </div>
+
+    <!-- Only Dot Grid Background (.....) -->
+    <div class="decor-dot-grid"></div>
+
+    <!-- Skip button -->
+    <button id="skip-btn" class="skip-btn" type="button">skip &rarr;</button>
+  </div>
+
+  <div class="top-rule"></div>
+
+  <!-- Main Content Page (Preserved Theme & Color Scheme) -->
+  <main id="main-content">
+    <h1>私は <span class="tilde">vux06</span></h1>
+    <div class="role">CTF Player &amp; Bug Hunter</div>
+    <p class="tagline">
+      Notes from CTFs, bug bounty hunts, and the OSCP road — alongside
+      the tools and code built while getting there.
+    </p>
+
+    <div class="cards">
+      <a class="card" href="/writeups.html" aria-label="Writeups section">
+        <div class="card-top">
+          <span class="card-index">01</span>
+          <span class="arrow">&#8599;</span>
+        </div>
+        <h2>Writeups</h2>
+        <p>CTF solves, HTB/THM boxes, and notes from the OSCP grind.</p>
+      </a>
+
+      <a class="card" href="/portfolio/" aria-label="Portfolio section">
+        <div class="card-top">
+          <span class="card-index">02</span>
+          <span class="arrow">&#8599;</span>
+        </div>
+        <h2>Portfolio</h2>
+        <p>Tools, scripts, and projects — from bug bounty to dev work.</p>
+      </a>
+    </div>
+
+    <footer>root@vux06 &mdash; last login: today</footer>
+  </main>
+
+  <script>
+    (function () {
+      const loader = document.getElementById('loader-wrapper');
+      const video = document.getElementById('intro-video');
+      const skipBtn = document.getElementById('skip-btn');
+      let isDismissed = false;
+
+      function dismissLoader() {
+        if (isDismissed) return;
+        isDismissed = true;
+
+        if (loader) {
+          loader.classList.add('loaded');
+        }
+        document.body.classList.add('content-ready');
+
+        setTimeout(function () {
+          if (video && typeof video.pause === 'function') {
+            video.pause();
+          }
+          if (loader) {
+            loader.style.display = 'none';
+          }
+        }, 800);
+      }
+
+      if (video) {
+        // Natural end of video
+        video.addEventListener('ended', dismissLoader);
+        video.addEventListener('error', dismissLoader);
+
+        // Try autoplay
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(function () {
+            // Autoplay prevented; fallback timer handles transition
+          });
+        }
+      }
+
+      // Skip on click anywhere on loader or skip button
+      if (loader) {
+        loader.addEventListener('click', dismissLoader);
+      }
+      if (skipBtn) {
+        skipBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          dismissLoader();
+        });
+      }
+
+      // Safety timeout: dismiss after ~2.4s max
+      setTimeout(dismissLoader, 2400);
+    })();
+  </script>
+</body>
+
+</html>
